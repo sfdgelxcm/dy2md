@@ -109,7 +109,7 @@ python -m unittest discover -s tests -v   # 跑单元测试（不访问公网）
 
 ## 配置说明
 
-`config.yaml` 由 `config.example.yaml` 复制而来，已加入 `.gitignore`，不会被提交——**不要把真实 API Key、Cookie 或私有地址写进 `config.example.yaml`**。
+先复制 config.example.yaml 为 config.yaml，并填入你自己的配置。
 
 ### 大模型 API
 
@@ -126,7 +126,6 @@ siliconflow:
 ```
 
 <details>
-<summary>抖音解析服务、Whisper、分块等完整配置项（点击展开）</summary>
 
 **抖音解析服务**
 
@@ -235,7 +234,7 @@ dy2md/
 └── run_text_cleaner.bat
 ```
 
-运行产生的 `temp/`、`output/`、`logs/`、模型缓存与下载到的音视频文件不会提交到 Git。
+
 
 </details>
 
