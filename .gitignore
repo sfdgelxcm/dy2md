@@ -1,0 +1,41 @@
+# Secrets and machine-local configuration
+config.yaml
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Generated content
+logs/
+output/
+temp/
+
+# Local tools and editors
+.factory/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Downloaded media and generated subtitles
+*.mp3
+*.wav
+*.m4a
+*.flac
+*.ogg
+*.mp4
+*.mkv
+*.webm
+*.srt

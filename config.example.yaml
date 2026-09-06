@@ -1,0 +1,62 @@
+# Video to Markdown configuration example
+# Copy this file to config.yaml, then fill in your own local values.
+
+# Independently deployed Douyin_TikTok_Download_API service.
+# This project communicates with it only through HTTP.
+douyin_api:
+  base_url: "http://127.0.0.1:8000"
+  endpoint: "/api/hybrid/video_data"
+  health_endpoint: "/health"
+  health_timeout: 2
+  timeout: 60
+  trust_env: false
+  auto_start:
+    enabled: true
+    project_dir: "../Douyin_TikTok_Download_API"
+    python: ".venv/Scripts/python.exe"
+    command:
+      - "{app_dir}/crawler_sidecar.py"
+      - "--host"
+      - "127.0.0.1"
+      - "--port"
+      - "8000"
+      - "--max-attempts"
+      - "5"
+      - "--retry-delay"
+      - "1"
+    startup_timeout: 30
+    poll_interval: 0.5
+    stop_on_exit: false
+    log_file: "./logs/douyin_api_service.log"
+
+# OpenAI-compatible API configuration
+siliconflow:
+  api_key: "YOUR_API_KEY"
+  base_url: "https://api.siliconflow.cn/v1"
+  model: "Qwen/Qwen2.5-7B-Instruct"
+  reasoning_effort: ""
+  timeout: 900
+  max_retries: 6
+  retry_base_delay: 5
+  retry_max_delay: 90
+  concurrency: 16
+
+# faster-whisper configuration
+whisper:
+  model_size: "large-v3"
+  device: "cuda"
+  compute_type: "float16"
+  language: null
+
+raw:
+  include_timestamps: false
+
+chunking:
+  max_chars: 2500
+  min_chars: 500
+
+download:
+  temp_dir: "./temp"
+  output_dir: "./output"
+  timeout: 120
+  max_retries: 3

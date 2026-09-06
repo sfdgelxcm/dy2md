@@ -1,0 +1,9 @@
+# Video to Markdown 依赖
+
+# 核心依赖
+faster-whisper>=1.0.0
+httpx>=0.25.0
+PyYAML>=6.0
+
+# GUI依赖
+customtkinter>=5.2.0
