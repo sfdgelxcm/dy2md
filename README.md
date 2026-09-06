@@ -1,238 +1,88 @@
-# Video to Markdown
+<div align="center">
 
-抖音视频 / 本地音视频转 Markdown 的 ETL 工具：媒体获取 → 语音识别 → AI 清洗 → 输出结构化 Markdown。
+# dy2md
 
-## 功能特性
+**抖音视频 / 本地音视频 → Markdown** 的全自动 ETL 工具
 
-- **抖音视频转写**：输入抖音链接或分享文案，通过独立解析服务获取媒体地址
-- **本地音视频转写**：支持 mp3 / wav / m4a / flac / ogg / mp4
-- **批量处理**：处理整个目录或一次选择多个文件
-- **AI 文本清洗**：添加标点、修正错字、整理口语和段落
-- **智能文件名**：根据内容生成简洁文件名
-- **双语字幕**：将英文音视频转换为中英双语 SRT
-- **独立文本清洗**：无需音频，直接清洗 txt / md 文稿
-- **GUI 与 CLI**：提供 Windows 图形界面及命令行入口
+媒体获取 → 语音识别 → AI 清洗 → 结构化 Markdown
 
-## 处理流程
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](#环境要求)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)](#快速开始)
 
-```text
-抖音链接 ──HTTP──> crawler_sidecar.py（爬虫独立环境）
-                         │
-                         ▼
-本地音视频 ─────────> 媒体文件
-                         │
-                         ▼
-                   faster-whisper
-                         │
-                         ▼
-                  分块与 LLM 清洗
-                         │
-                         ▼
-                      Markdown
-```
+</div>
 
-## 架构：解析服务与转写应用完全解耦
+---
 
-本项目不包含抖音爬虫，也不会把爬虫项目加入 `sys.path`。两套程序分别安装、使用各自的虚拟环境，仅通过 HTTP API 通信；一键启动器只负责拉起独立进程，不会导入对方代码：
+## 这是什么
 
-```text
-┌──────────────────────────┐       HTTP / JSON       ┌──────────────────────────────┐
-│ video_to_markdown         │ ──────────────────────> │ crawler_sidecar.py            │
-│ 独立 .venv                │ <────────────────────── │ 独立 .venv / Docker           │
-│ ASR、LLM、GUI、Markdown   │                         │ 链接解析与 Cookie 管理         │
-└──────────────────────────┘                         └──────────────────────────────┘
-```
+把一条抖音链接，或者一个本地音频/视频文件，丢给它，就能自动跑完「下载音频 → 语音识别 → AI 去除口水词并排版 → 输出 Markdown」全流程，最后得到一份可以直接读的文字稿。
 
-代码边界如下：
+- 🎬 **抖音视频转写**：粘贴分享链接或分享文案即可
+- 🎙️ **本地音视频转写**：mp3 / wav / m4a / flac / ogg / mp4
+- 📁 **批量处理**：整个文件夹一键跑完
+- ✨ **AI 智能清洗**：自动加标点、去口语词、修错字、重新分段
+- 🏷️ **智能文件名**：根据内容自动生成简洁文件名
+- 🌐 **双语字幕**：英文音视频转写并生成中英双语 SRT
+- 🧹 **独立文本清洗**：手头已有文字稿？不需要音频也能直接清洗排版
+- 🖥️ **GUI + CLI**：图形界面日常用，命令行方便自动化
 
-- `douyin_api_client.py`：只负责调用第三方解析服务并校验 HTTP/JSON 响应
-- `downloader.py`：把第三方字段转换成本项目的统一结构，并下载媒体
-- `service_manager.py`：检测服务状态，必要时用爬虫自己的 Python 后台启动服务
-- `crawler_sidecar.py`：在爬虫独立环境中运行，只暴露本项目需要的稳定 HTTP 接口
-- `launcher.py`：先确保服务就绪，再打开 GUI
-- `main.py`、`gui_pro.py`：只依赖本项目的下载接口，不了解爬虫实现
-- 直接使用 CLI 处理本地音视频或文本时，不需要抖音解析服务
+## 快速开始
 
-因此两边可以独立升级、独立部署，也可以把解析服务放在另一台机器或容器中。
+> 只处理**本地文件**？跳过第 1 步，直接看第 2 步即可，不需要部署抖音解析服务。
 
-## 环境要求
-
-- Python 3.10+
-- NVIDIA GPU（推荐）；CPU 模式也可运行
-- OpenAI 兼容的大模型 API
-- 处理抖音链接时，另需独立运行的 [Douyin_TikTok_Download_API](https://github.com/Evil0ctal/Douyin_TikTok_Download_API)
-
-## 安装本项目
-
-本项目必须使用自己的虚拟环境：
-
-Windows 用户可以直接双击 `setup.bat`。也可以手动执行：
-
-```powershell
-git clone <本仓库地址>
-cd video_to_markdown
-
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-
-Copy-Item config.example.yaml config.yaml
-```
-
-如果只处理本地文件，可以不部署抖音解析服务。
-
-## 配置
-
-### 抖音解析服务
-
-```yaml
-douyin_api:
-  base_url: "http://127.0.0.1:8000"
-  endpoint: "/api/hybrid/video_data"
-  health_endpoint: "/health"
-  health_timeout: 2
-  timeout: 60
-  trust_env: false
-  auto_start:
-    enabled: true
-    project_dir: "../Douyin_TikTok_Download_API"
-    python: ".venv/Scripts/python.exe"
-    command:
-      - "{app_dir}/crawler_sidecar.py"
-      - "--host"
-      - "127.0.0.1"
-      - "--port"
-      - "8000"
-      - "--max-attempts"
-      - "5"
-      - "--retry-delay"
-      - "1"
-    startup_timeout: 30
-    poll_interval: 0.5
-    stop_on_exit: false
-    log_file: "./logs/douyin_api_service.log"
-```
-
-- `base_url`：解析服务地址，可使用本机、局域网或远程地址
-- `endpoint`：当前适配的混合视频解析接口
-- `health_endpoint`：启动器用来判断服务是否就绪的地址
-- `timeout`：解析请求超时时间，单位为秒
-- `trust_env`：是否读取系统代理变量；本地服务通常设为 `false`
-- `auto_start.project_dir`：爬虫项目目录；可以是相对路径或本机绝对路径
-- `auto_start.python`：相对于爬虫目录的独立 Python 路径
-- `auto_start.command`：交给爬虫 Python 执行的启动参数，不经过 Shell
-- `{app_dir}`：启动时自动替换为本项目目录，不需要手工填写
-- `--max-attempts`：遇到抖音临时 403 等解析失败时，由 Sidecar 自动重新生成请求并重试
-- `stop_on_exit: false`：关闭 GUI 后让解析服务保持常驻，下次启动更快
-
-### 大模型 API
-
-`siliconflow` 是历史配置段名称，实际支持任意 OpenAI 兼容接口：
-
-```yaml
-siliconflow:
-  api_key: "YOUR_API_KEY"
-  base_url: "https://api.siliconflow.cn/v1"
-  model: "Qwen/Qwen2.5-7B-Instruct"
-  reasoning_effort: ""
-  timeout: 900
-  max_retries: 6
-  retry_base_delay: 5
-  retry_max_delay: 90
-  concurrency: 16
-```
-
-### Whisper 与输出
-
-GPU 示例：
-
-```yaml
-whisper:
-  model_size: "large-v3"
-  device: "cuda"
-  compute_type: "float16"
-  language: null
-```
-
-CPU 示例：
-
-```yaml
-whisper:
-  model_size: "small"
-  device: "cpu"
-  compute_type: "int8"
-  language: null
-```
-
-其他参数：
-
-```yaml
-raw:
-  include_timestamps: false
-
-chunking:
-  max_chars: 2500
-  min_chars: 500
-
-download:
-  temp_dir: "./temp"
-  output_dir: "./output"
-  timeout: 120
-  max_retries: 3
-```
-
-`config.yaml` 已加入 `.gitignore`。不要把真实 API Key、Cookie 或私有服务地址写入 `config.example.yaml`。
-
-## 安装 Douyin_TikTok_Download_API 依赖项目
-
-以下操作在另一个目录和另一个终端中完成：
+**1. 部署抖音解析服务**（仅处理抖音链接时需要，另开一个目录）
 
 ```powershell
 git clone https://github.com/Evil0ctal/Douyin_TikTok_Download_API.git
 cd Douyin_TikTok_Download_API
-
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
+按该项目文档配置好 Cookie。**不需要手动启动它**——本项目的启动器会在需要时自动用它的独立环境拉起来。
 
-根据该项目文档配置 Cookie。正常使用不需要手动启动它；启动器会使用这个项目的独立 Python 运行 `crawler_sidecar.py`。
-
-如需排错，可在本项目目录手动执行：
+**2. 安装本项目**
 
 ```powershell
-<爬虫项目目录>\.venv\Scripts\python.exe crawler_sidecar.py --host 127.0.0.1 --port 8000
+git clone https://github.com/sfdgelxcm/dy2md.git
+cd dy2md
+setup.bat          # 或手动: python -m venv .venv && pip install -r requirements.txt
+copy config.example.yaml config.yaml
 ```
+打开 `config.yaml`，填好你的大模型 API（任意 OpenAI 兼容接口都行，见下方[配置说明](#大模型-api)），如果要处理抖音链接，把 `douyin_api.auto_start.project_dir` 指向第 1 步克隆的目录。
 
-Sidecar 启动后，接口文档位于：
+**3. 运行**
 
-```text
-http://127.0.0.1:8000/docs
+```powershell
+run_gui_pro.bat
 ```
+双击即可，GUI 会自动检测并按需拉起抖音解析服务。命令行用法见下方 [使用方法](#使用方法)。
 
-正常使用时，`launcher.py` 会自动执行 `auto_start.command`，等待 `/health` 就绪后再打开 GUI，不需要修改第三方项目自身的默认端口。
+## 处理流程
 
-启动器只管理独立进程，不共享环境、不修改第三方代码。若 `base_url` 指向远程或 Docker 服务，可将 `auto_start.enabled` 设为 `false`。
+```
+抖音链接 ──HTTP──> crawler_sidecar.py（独立环境运行）
+                         │
+本地音视频 ──────────────┤
+                         ▼
+                   faster-whisper 语音识别
+                         │
+                         ▼
+                  智能分块 + LLM 深度清洗
+                         │
+                         ▼
+                       Markdown
+```
 
 ## 使用方法
 
-### GUI
-
-完成一次路径配置后，直接双击：
-
-```text
-run_gui_pro.bat
-```
-
-它会自动检测服务；服务未运行时，会使用爬虫自己的 `.venv` 静默启动并等待就绪，然后打开 GUI。也可以执行：
+### GUI（推荐）
 
 ```powershell
-python launcher.py
+run_gui_pro.bat
 ```
-
-如需绕过服务管理、只打开 GUI，可直接运行 `python gui_pro.py`。
+支持三种模式：粘贴抖音链接 / 选择本地文件 / 选择批量文件夹。
 
 ### 命令行
 
@@ -250,15 +100,13 @@ python main.py "D:\path\to\media" --batch
 python main.py "audio.mp3" -o "D:\path\to\output"
 ```
 
-### 独立文本清洗
+### 独立文本清洗（无需音频）
 
 ```powershell
 python text_cleaner.py input.txt
-python text_cleaner.py input.txt -o output.md
 python text_cleaner.py input_folder --batch
 ```
-
-Windows 下也可把文本文件拖到 `run_text_cleaner.bat`。详细说明见 [README_text_cleaner.md](README_text_cleaner.md)。
+Windows 下也可以直接把文件拖到 `run_text_cleaner.bat` 上。详细用法见 [README_text_cleaner.md](README_text_cleaner.md)。
 
 ### 中英双语字幕
 
@@ -266,25 +114,121 @@ Windows 下也可把文本文件拖到 `run_text_cleaner.bat`。详细说明见 
 python make_bilingual_srt.py "D:\path\to\english_audio.mp3"
 ```
 
-### API 连通性测试
+### 排错用命令
 
 ```powershell
-# 测试 OpenAI 兼容大模型接口
-python test_api_connection.py
-
-# 只检测/启动抖音解析服务，不打开 GUI
-python launcher.py --service-only
-
-# 运行不访问公网的抖音适配层单元测试
-python -m unittest discover -s tests -v
+python test_api_connection.py        # 测试大模型 API 是否连得通
+python launcher.py --service-only    # 只检测/启动抖音解析服务，不开 GUI
+python -m unittest discover -s tests -v   # 跑单元测试（不访问公网）
 ```
+
+## 配置说明
+
+`config.yaml` 由 `config.example.yaml` 复制而来，已加入 `.gitignore`，不会被提交——**不要把真实 API Key、Cookie 或私有地址写进 `config.example.yaml`**。
+
+### 大模型 API
+
+配置段名字虽然叫 `siliconflow`，但**实际支持任意 OpenAI 兼容接口**——云端（OpenAI、DeepSeek、硅基流动、Moonshot……）或本地部署（Ollama、LM Studio、vLLM）都可以，改一下 `base_url` / `api_key` / `model` 三项即可：
+
+```yaml
+siliconflow:
+  api_key: "YOUR_API_KEY"      # 本地部署可随便填占位符
+  base_url: "https://api.siliconflow.cn/v1"
+  model: "Qwen/Qwen2.5-7B-Instruct"
+  timeout: 900
+  max_retries: 6
+  concurrency: 16
+```
+
+<details>
+<summary>抖音解析服务、Whisper、分块等完整配置项（点击展开）</summary>
+
+**抖音解析服务**
+
+```yaml
+douyin_api:
+  base_url: "http://127.0.0.1:8000"
+  endpoint: "/api/hybrid/video_data"
+  health_endpoint: "/health"
+  health_timeout: 2
+  timeout: 60
+  trust_env: false          # 本地服务建议保持 false，避免系统代理拦截
+  auto_start:
+    enabled: true
+    project_dir: "../Douyin_TikTok_Download_API"   # 抖音解析项目目录
+    python: ".venv/Scripts/python.exe"              # 相对该目录的独立 Python
+    command:
+      - "{app_dir}/crawler_sidecar.py"   # {app_dir} 会自动替换为本项目目录
+      - "--host"
+      - "127.0.0.1"
+      - "--port"
+      - "8000"
+      - "--max-attempts"
+      - "5"
+      - "--retry-delay"
+      - "1"
+    startup_timeout: 30
+    poll_interval: 0.5
+    stop_on_exit: false      # false = 关闭 GUI 后解析服务保持常驻，下次启动更快
+    log_file: "./logs/douyin_api_service.log"
+```
+
+若 `base_url` 指向远程或 Docker 部署的服务，把 `auto_start.enabled` 设为 `false` 即可，启动器不会再尝试拉起本地进程。
+
+**Whisper 语音识别**
+
+```yaml
+# GPU
+whisper:
+  model_size: "large-v3"
+  device: "cuda"
+  compute_type: "float16"
+  language: null
+
+# CPU（速度更慢，但不需要显卡）
+whisper:
+  model_size: "small"
+  device: "cpu"
+  compute_type: "int8"
+  language: null
+```
+
+**其他参数**
+
+```yaml
+raw:
+  include_timestamps: false
+
+chunking:
+  max_chars: 2500
+  min_chars: 500
+
+download:
+  temp_dir: "./temp"
+  output_dir: "./output"
+  timeout: 120
+  max_retries: 3
+```
+
+
+
+
+## 环境要求
+
+- Python 3.10+
+- NVIDIA GPU（推荐，用于加速语音识别；CPU 模式也能跑，速度较慢）
+- 一个 OpenAI 兼容的大模型 API
+- 处理抖音链接时，另需独立部署的 [Douyin_TikTok_Download_API](https://github.com/Evil0ctal/Douyin_TikTok_Download_API)
 
 ## 项目结构
 
-```text
-video_to_markdown/
+<details>
+<summary>点击展开完整文件说明</summary>
+
+```
+dy2md/
 ├── config.example.yaml       # 可提交的配置模板
-├── config.yaml               # 本机配置，已被 gitignore
+├── config.yaml               # 本机配置（含密钥），已 gitignore
 ├── douyin_api_client.py      # 第三方解析服务 HTTP 适配器
 ├── service_manager.py        # 独立服务检测与进程管理
 ├── crawler_sidecar.py        # 在爬虫独立环境中运行的 HTTP Sidecar
@@ -301,39 +245,40 @@ video_to_markdown/
 ├── test_api_connection.py    # LLM API 测试
 ├── tests/                    # HTTP 适配层单元测试
 ├── requirements.txt
-├── setup.bat                 # 创建本项目独立环境并安装依赖
+├── setup.bat                 # 创建虚拟环境并安装依赖
 ├── run_gui_pro.bat
 └── run_text_cleaner.bat
 ```
 
-运行产生的 `temp/`、`output/`、`logs/`、模型缓存和音视频文件不会提交到 Git。
+运行产生的 `temp/`、`output/`、`logs/`、模型缓存与下载到的音视频文件不会提交到 Git。
+
+</details>
 
 ## 常见问题
 
-### 无法连接抖音解析服务
+**连不上抖音解析服务**
+- 确认 `douyin_api.auto_start.enabled` 是否为 `true`，`project_dir` / `python` 路径是否存在
+- 浏览器打开对应端口的 `/health` 或 `/docs` 看能不能访问
+- 本地服务建议保持 `trust_env: false`，避免系统代理干扰
+- 查看 `logs/douyin_api_service.log`
 
-- 检查 `auto_start.enabled` 是否为 `true`
-- 检查 `auto_start.project_dir` 和 `auto_start.python` 是否存在
-- 确认浏览器可以打开对应端口的 `/health` 或 `/docs`
-- 检查 `douyin_api.base_url` 和 `douyin_api.endpoint`
-- 如果调用本机服务，建议保持 `trust_env: false`，避免系统代理拦截本地请求
-- 查看 `logs/douyin_api_service.log` 中的第三方服务启动日志
+**解析结果里没有音频/视频地址**
+第三方接口字段、Cookie 或抖音接口本身可能变了。先在 Sidecar 的 `/docs` 里手动调用一次接口，对照 `logs/douyin_api_service.log` 里的原始报错排查。
 
-### 响应中没有音频或视频地址
+**LLM 请求失败**
+- 检查 `siliconflow.base_url` / `api_key` / `model`
+- 本地模型服务先确认进程真的在监听
+- 云端服务如需代理，设置 `HTTP_PROXY` / `HTTPS_PROXY`
 
-第三方接口字段、Cookie 或抖音接口可能发生变化。先在 Sidecar 的 `/docs` 中调用 `/api/hybrid/video_data`，并查看 `logs/douyin_api_service.log` 中的原始异常。
+## 免责声明
 
-### LLM 请求失败
-
-- 检查 `siliconflow.base_url`、`api_key` 和 `model`
-- 本地模型服务需先确认其进程正在监听
-- 云端服务如需代理，可设置 `HTTP_PROXY` / `HTTPS_PROXY`
+本项目仅用于个人学习和研究用途。抖音解析能力依赖第三方开源项目，请遵守抖音的用户协议、相关法律法规以及内容原作者的权益，不要用于批量爬取、商业分发或侵犯他人版权的场景。因使用本项目产生的任何后果由使用者自行承担。
 
 ## 致谢
 
 - 抖音 / TikTok 解析能力由 [Evil0ctal/Douyin_TikTok_Download_API](https://github.com/Evil0ctal/Douyin_TikTok_Download_API) 提供
-- 语音识别基于 [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+- 语音识别基于 [faster-whisper]
 
 ## License
 
-项目目前未附带开源协议；公开发布前可根据需要添加 `LICENSE`。
+[MIT](LICENSE)
