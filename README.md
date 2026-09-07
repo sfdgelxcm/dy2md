@@ -125,7 +125,7 @@ siliconflow:
   concurrency: 16
 ```
 
-<details>
+
 
 **抖音解析服务**
 
