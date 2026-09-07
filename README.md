@@ -206,8 +206,7 @@ download:
 
 ## 项目结构
 
-<details>
-<summary>点击展开完整文件说明</summary>
+
 
 ```
 dy2md/
@@ -236,7 +235,6 @@ dy2md/
 
 
 
-</details>
 
 ## 常见问题
 
